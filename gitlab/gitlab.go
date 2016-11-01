@@ -3,6 +3,7 @@ package gitlab
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	gitlab "github.com/xanzy/go-gitlab"
 )
@@ -31,6 +32,7 @@ var (
 		"tech":        "#1F618D",
 		"bug":         "#FF5733",
 		"tranversal":  "#8E44AD",
+		"0.2":         "#34495E",
 		"0.5":         "#34495E",
 		"1.0":         "#34495E",
 		"2.0":         "#34495E",
@@ -90,13 +92,13 @@ func GetGitlabLabels(list []string, group string, project string) []string {
 //PrintGitlabLabels allow to print a list of gitlab labels
 func PrintGitlabLabels(list []string) {
 	for _, label := range list {
-		log.Printf("label: %s", label)
+		fmt.Printf("label: %s\n", label)
 	}
 }
 
 //GetMilestone find a milestone with name milestoneName for project with pid
 func GetMilestone(milestoneName string, project string) (gitlab.Milestone, error) {
-	pid := getProjectId(project)
+	pid := getProjectID(project)
 	mileStoneList, _, err := git.Milestones.ListMilestones(pid, &gitlab.ListMilestonesOptions{})
 	for _, milestone := range mileStoneList {
 		if milestone.Title == milestoneName {
@@ -142,8 +144,7 @@ func SynchronizeLabels(group string) {
 
 }
 
-func getProjectId(projectName string) int {
-	fmt.Println("looking for project")
+func getProjectID(projectName string) int {
 	opt := &gitlab.ListProjectsOptions{Search: gitlab.String(projectName)}
 	projects, _, err := git.Projects.ListProjects(opt)
 	var pid int
@@ -158,16 +159,33 @@ func getProjectId(projectName string) int {
 	return pid
 }
 
-//CreateGitlabIssue allow to create a gitlab issue
-func CreateGitlabIssue(project string, title string, description string, milestoneID int, labels []string) {
-	// title, description, AssigneeID, MilestoneID, Labels
-	pid := getProjectId(project)
-	options := &gitlab.CreateIssueOptions{
-		Title:       &title,
-		Description: &description,
-		MilestoneID: &milestoneID,
-		Labels:      labels,
+func issueExist(title string, pid int, issueNumber int32) bool {
+	issueList, _, err := git.Issues.ListProjectIssues(pid, &gitlab.ListProjectIssuesOptions{})
+	if err != nil {
+		fmt.Println("Error while testing if issue exists, prefrer crash instead of creating duplicates")
+		panic(err.Error())
 	}
+	for _, issue := range issueList {
+		if strings.Contains(issue.Title, fmt.Sprintf("#%d", issueNumber)) {
+			return true
+		}
+	}
+	return false
+}
 
-	git.Issues.CreateIssue(pid, options)
+//CreateGitlabIssue allow to create a gitlab issue
+func CreateGitlabIssue(projects []string, title string, description string, milestoneID int, labels []string, number int32) {
+	// title, description, AssigneeID, MilestoneID, Labels
+	for _, p := range projects {
+		pid := getProjectID(projectMapping[p])
+		if !issueExist(title, pid, number) {
+			options := &gitlab.CreateIssueOptions{
+				Title:       &title,
+				Description: &description,
+				MilestoneID: &milestoneID,
+				Labels:      labels,
+			}
+			git.Issues.CreateIssue(pid, options)
+		}
+	}
 }

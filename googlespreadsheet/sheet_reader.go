@@ -29,9 +29,22 @@ type UserStory struct {
 	Bot         []string
 }
 
+// Print allow to print an user story in stdout
 func (us UserStory) Print() {
 	formated := fmt.Sprintf("Priority : %d, Number : %d, ManDay : %f, Bot : %s \n %s", us.Priority, us.Number, us.ManDay, us.Bot, us.Description)
 	fmt.Println(formated)
+}
+
+// DescriptionToTitle allow to cut description to create a title
+func (us UserStory) DescriptionToTitle() string {
+	split := strings.Split(us.Description, "\n")[0]
+	var result string
+	if len(split) > 120 {
+		result = fmt.Sprintf("#%d : %s", us.Number, split[:120])
+	} else {
+		result = fmt.Sprintf("#%d : %s", us.Number, split)
+	}
+	return result
 }
 
 // ReadSheet read the google backlog spreadsheet and convert it into internet UserStory struct
