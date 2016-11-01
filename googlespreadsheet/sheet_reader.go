@@ -20,6 +20,12 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+const (
+	readRange = "Mep 11/16!A3:H173"
+	//readRange     = "Mep 11/16!A78:H173"
+	spreadsheetID = "1NBh34AQfSrIEzzRa8xL5Mlth9XlIfBsyK8e0R0X_UcQ"
+)
+
 // UserStory is the internal representation of UserStory mapped on spreadsheet backlog
 type UserStory struct {
 	Priority    int32
@@ -70,10 +76,6 @@ func ReadSheet() []UserStory {
 		log.Fatalf("Unable to retrieve Sheets Client %v", err)
 	}
 
-	// Prints the names and majors of students in a sample spreadsheet:
-	// https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
-	spreadsheetID := "1NBh34AQfSrIEzzRa8xL5Mlth9XlIfBsyK8e0R0X_UcQ"
-	readRange := "Mep 11/16!A3:H173"
 	resp, err := srv.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve data from sheet. %v", err)

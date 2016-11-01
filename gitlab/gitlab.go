@@ -16,15 +16,17 @@ const (
 var (
 	git            *gitlab.Client
 	projectMapping = map[string]string{
-		"chat":      "boob_chat",
-		"broadcast": "boob_broadcast",
-		"html":      "boob_html",
-		"identity":  "boob_identity",
-		"payment":   "payment",
-		"user":      "boob_user",
-		"shop":      "boob_shop",
-		"realtime":  "boob_realtime",
-		"meta_boob": "meta_boob",
+		"chat":         "boob_chat",
+		"broadcast":    "boob_broadcast",
+		"html":         "boob_html",
+		"identity":     "boob_identity",
+		"payment":      "boob_payment",
+		"user":         "boob_user",
+		"shop":         "boob_shop",
+		"realtime":     "boob_realtime",
+		"meta_boob":    "meta_boob",
+		"notification": "boob_notification",
+		"flash":        "boob_flash",
 	}
 
 	labels = map[string]string{
@@ -145,6 +147,7 @@ func SynchronizeLabels(group string) {
 }
 
 func getProjectID(projectName string) int {
+	fmt.Printf("Project name is : [%s] ", projectName)
 	opt := &gitlab.ListProjectsOptions{Search: gitlab.String(projectName)}
 	projects, _, err := git.Projects.ListProjects(opt)
 	var pid int
@@ -173,19 +176,48 @@ func issueExist(title string, pid int, issueNumber int32) bool {
 	return false
 }
 
+//ListAllProjectAccessibles give access to all project printed on stoud
+func ListAllProjectAccessibles() {
+	falseBool := false
+	optAll := &gitlab.ListProjectsOptions{Archived: &falseBool}
+	projectsAll, _, err := git.Projects.ListProjects(optAll)
+	if err != nil {
+		panic(err.Error())
+	}
+	for _, project := range projectsAll {
+		fmt.Println(project.Name)
+	}
+}
+
 //CreateGitlabIssue allow to create a gitlab issue
-func CreateGitlabIssue(projects []string, title string, description string, milestoneID int, labels []string, number int32) {
+func CreateGitlabIssue(projects []string, title string, description string, labels []string, number int32, milestone string) {
+
 	// title, description, AssigneeID, MilestoneID, Labels
 	for _, p := range projects {
 		pid := getProjectID(projectMapping[p])
+		milestone, _ := GetMilestone(milestone, projectMapping[p])
 		if !issueExist(title, pid, number) {
 			options := &gitlab.CreateIssueOptions{
 				Title:       &title,
 				Description: &description,
-				MilestoneID: &milestoneID,
+				MilestoneID: &milestone.ID,
 				Labels:      labels,
 			}
 			git.Issues.CreateIssue(pid, options)
+		}
+	}
+}
+
+//SearchIssueWithoutMileStone list issue without milestone affected
+func SearchIssueWithoutMileStone() {
+	labs := &gitlab.Labels{"functionnal"}
+	listIssuesOpts := &gitlab.ListIssuesOptions{Labels: *labs}
+	issues, _, _ := git.Issues.ListIssues(listIssuesOpts)
+	for _, issue := range issues {
+		fmt.Printf("Title : %s", issue.Title)
+		if issue.Milestone.ID == 0 {
+			fmt.Printf("Pid : %d", issue.ProjectID)
+			fmt.Printf("Title : %s", issue.Title)
 		}
 	}
 }

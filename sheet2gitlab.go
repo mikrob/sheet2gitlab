@@ -1,35 +1,29 @@
 package main
 
-import (
-	"fmt"
-	"strconv"
-
-	gitlab "gitlab.botsunit.com/infra/sheet2gitlab/gitlab"
-	sheetReader "gitlab.botsunit.com/infra/sheet2gitlab/googlespreadsheet"
-)
+import gitlab "gitlab.botsunit.com/infra/sheet2gitlab/gitlab"
 
 func main() {
 
 	gitlab.InitializeGitlab()
+	//gitlab.ListAllProjectAccessibles()
 
-	gitlab.SynchronizeLabels("boobs")
-
-	userStoryList := sheetReader.ReadSheet()
-	fmt.Println(len(userStoryList))
-	us := userStoryList[45]
-	fmt.Println(us.DescriptionToTitle())
-
-	manDayStr := strconv.FormatFloat(float64(us.ManDay), 'f', 1, 64)
-
-	fmt.Println("Man day converted :", manDayStr)
-	labelList := []string{manDayStr, "functionnal"}
-	if len(us.Bot) > 1 {
-		labelList = append(labelList, "tranversal")
-	}
-	gitlabLabels := gitlab.GetGitlabLabels(labelList, "boobs", "meta_boob")
-
-	gitlab.PrintGitlabLabels(gitlabLabels)
-	milestone, _ := gitlab.GetMilestone("0.5", "meta_boob")
-	gitlab.CreateGitlabIssue(us.Bot, us.DescriptionToTitle(), us.Description, milestone.ID, gitlabLabels, us.Number)
-
+	// gitlab.SynchronizeLabels("boobs")
+	//
+	// userStoryList := sheetReader.ReadSheet()
+	// fmt.Printf("We have %d user stories", len(userStoryList))
+	// for _, us := range userStoryList {
+	// 	fmt.Println("####################################################################")
+	// 	fmt.Printf("Issue #%d", us.Number)
+	// 	fmt.Println(us.DescriptionToTitle())
+	// 	fmt.Println(us.Bot)
+	// 	manDayStr := strconv.FormatFloat(float64(us.ManDay), 'f', 1, 64)
+	// 	labelList := []string{manDayStr, "functionnal"}
+	// 	if len(us.Bot) > 1 {
+	// 		labelList = append(labelList, "tranversal")
+	// 	}
+	// 	gitlabLabels := gitlab.GetGitlabLabels(labelList, "boobs", "meta_boob")
+	// 	gitlab.PrintGitlabLabels(gitlabLabels)
+	// 	gitlab.CreateGitlabIssue(us.Bot, us.DescriptionToTitle(), us.Description, gitlabLabels, us.Number, "0.5")
+	// }
+	gitlab.SearchIssueWithoutMileStone()
 }
