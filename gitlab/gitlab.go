@@ -3,6 +3,7 @@ package gitlab
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	gitlab "github.com/xanzy/go-gitlab"
@@ -147,7 +148,7 @@ func SynchronizeLabels(group string) {
 }
 
 func getProjectID(projectName string) int {
-	fmt.Printf("Project name is : [%s] ", projectName)
+	//fmt.Printf("Project name is : [%s] ", projectName)
 	opt := &gitlab.ListProjectsOptions{Search: gitlab.String(projectName)}
 	projects, _, err := git.Projects.ListProjects(opt)
 	var pid int
@@ -214,10 +215,61 @@ func SearchIssueWithoutMileStone() {
 	listIssuesOpts := &gitlab.ListIssuesOptions{Labels: *labs}
 	issues, _, _ := git.Issues.ListIssues(listIssuesOpts)
 	for _, issue := range issues {
-		fmt.Printf("Title : %s", issue.Title)
 		if issue.Milestone.ID == 0 {
+			fmt.Printf("Url : %s \n", issue.WebURL)
 			fmt.Printf("Pid : %d", issue.ProjectID)
 			fmt.Printf("Title : %s", issue.Title)
 		}
 	}
+}
+
+//GetIssuesForMilestone retrieve all the issue for a milestone
+func GetIssuesForMilestone(milestoneName string, group string) map[string][]gitlab.Issue {
+	falseBool := false
+	optAll := &gitlab.ListProjectsOptions{Archived: &falseBool}
+	projectsAll, _, err := git.Projects.ListProjects(optAll)
+	if err != nil {
+		panic("Cannot retrieve project list!")
+	}
+	var idxDelete int
+	for i, proj := range projectsAll {
+		if proj.Name == "payment" {
+			idxDelete = i
+		}
+	}
+	projectsAll = append(projectsAll[:idxDelete], projectsAll[idxDelete+1:]...)
+	issuesPerProject := map[string][]gitlab.Issue{}
+
+	for _, project := range projectsAll {
+		pName := project.Name
+		milestone, err := GetMilestone(milestoneName, pName)
+		if err != nil {
+			panic(fmt.Sprintf("error while retrieving milestone %s for project : %s", milestoneName, pName))
+		}
+		opt := &gitlab.ListProjectIssuesOptions{
+			Milestone: &milestone.Title,
+		}
+		issuesForProject, _, err := git.Issues.ListProjectIssues(project.ID, opt)
+		if err != nil {
+			panic(fmt.Sprintf("error while retrieving issues for project : %s", project.Name))
+		}
+		for _, issue := range issuesForProject {
+			// if len(issuesPerProject[project.Name]) == 0 {
+			// 	issuesPerProject[project.Name] = []gitlab.Issue{}
+			// }
+			issuesPerProject[project.Name] = append(issuesPerProject[project.Name], *issue)
+		}
+	}
+	return issuesPerProject
+}
+
+//GetLabelManDay return label as float32 to retrieve man day
+func GetLabelManDay(labels []string) float32 {
+	result := 0.0
+	for _, label := range labels {
+		if strings.Contains(label, ".") {
+			result, _ = strconv.ParseFloat(label, 32)
+		}
+	}
+	return float32(result)
 }

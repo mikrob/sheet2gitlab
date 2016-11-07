@@ -1,6 +1,7 @@
 package googlespreadsheet
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 
+	"gitlab.botsunit.com/infra/sheet2gitlab/gitlab"
+
 	sheets "google.golang.org/api/sheets/v4"
 
 	"golang.org/x/net/context"
@@ -23,7 +26,8 @@ import (
 const (
 	readRange = "Mep 11/16!A3:H173"
 	//readRange     = "Mep 11/16!A78:H173"
-	spreadsheetID = "1NBh34AQfSrIEzzRa8xL5Mlth9XlIfBsyK8e0R0X_UcQ"
+	spreadsheetID      = "1NBh34AQfSrIEzzRa8xL5Mlth9XlIfBsyK8e0R0X_UcQ"
+	spreadsheetIDWrite = "1cm5IdPC8DJzaSXwCzDgIRhMvrGR4FEu6UVXDK0TRxv8"
 )
 
 // UserStory is the internal representation of UserStory mapped on spreadsheet backlog
@@ -33,11 +37,26 @@ type UserStory struct {
 	Description string
 	ManDay      float32
 	Bot         []string
+	Status      string
 }
 
 // Print allow to print an user story in stdout
 func (us UserStory) Print() {
 	formated := fmt.Sprintf("Priority : %d, Number : %d, ManDay : %f, Bot : %s \n %s", us.Priority, us.Number, us.ManDay, us.Bot, us.Description)
+	fmt.Println(formated)
+}
+
+//PrintCSV Print allow to print an user story in stdout
+func (us UserStory) PrintCSV() {
+	var realManDay float32
+	if us.ManDay == 0.2 {
+		realManDay = 0.25
+	} else {
+		realManDay = us.ManDay
+	}
+	realDescription := strings.Replace(us.Description, "\n", " ", -1)
+	realDescriptionTrimmed := bytes.Trim([]byte(realDescription), "\x00")
+	formated := fmt.Sprintf("%d;%d;%s;%s;%s;%f;", us.Priority, us.Number, string(realDescriptionTrimmed), us.Bot, us.Status, realManDay)
 	fmt.Println(formated)
 }
 
@@ -51,6 +70,28 @@ func (us UserStory) DescriptionToTitle() string {
 		result = fmt.Sprintf("#%d : %s", us.Number, split)
 	}
 	return result
+}
+
+// WriteSheetAsCSV return all issue for a milestone in csv format
+func WriteSheetAsCSV(milestone string) {
+	issuesPerProject := gitlab.GetIssuesForMilestone(milestone, "boobs")
+	issueCounter := 0
+	fmt.Println("priority;number;description;bots;status;manday;")
+	for project, issues := range issuesPerProject {
+		for _, issue := range issues {
+			manDays := gitlab.GetLabelManDay(issue.Labels)
+			userStory := UserStory{
+				Priority:    int32(issue.Milestone.ID),
+				Number:      int32(issueCounter),
+				Description: issue.Description,
+				Bot:         []string{project},
+				ManDay:      manDays,
+				Status:      issue.State,
+			}
+			issueCounter++
+			userStory.PrintCSV()
+		}
+	}
 }
 
 // ReadSheet read the google backlog spreadsheet and convert it into internet UserStory struct
@@ -181,3 +222,37 @@ func saveToken(file string, token *oauth2.Token) {
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
 }
+
+// // Write a spreadsheet from a list of userstory
+// func WriteSheet(userStoryList []UserStory) {
+// 	ctx := context.Background()
+//
+// 	b, err := ioutil.ReadFile("client_secret_write.json")
+// 	if err != nil {
+// 		log.Fatalf("Unable to read client secret file: %v", err)
+// 	}
+//
+// 	// If modifying these scopes, delete your previously saved credentials
+// 	// at ~/.credentials/sheets.googleapis.com-go-quickstart.json
+// 	config, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/spreadsheets")
+// 	if err != nil {
+// 		log.Fatalf("Unable to parse client secret file to config: %v", err)
+// 	}
+// 	client := getClient(ctx, config)
+//
+// 	srv, err := sheets.New(client)
+// 	if err != nil {
+// 		log.Fatalf("Unable to retrieve Sheets Client %v", err)
+// 	}
+// 	writeRange := "golang!A1"
+// 	var vr sheets.ValueRange
+//
+// 	myval := []interface{}{"One", "Two", "Three"}
+// 	vr.Values = append(vr.Values, myval)
+//
+// 	_, err = srv.Spreadsheets.Values.Update(spreadsheetIDWrite, writeRange, &vr).ValueInputOption("RAW").Do()
+// 	if err != nil {
+// 		log.Fatalf("Unable to retrieve data from sheet. %v", err)
+// 	}
+//
+// }
